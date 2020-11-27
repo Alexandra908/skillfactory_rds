@@ -1,0 +1,148 @@
+/*Проект 4. Авиарейсы без потерь.*/
+
+
+/*4.1. Список городов, в которых более одного аэропорта*/
+SELECT air.city
+FROM dst_project.Airports AS air
+GROUP BY 1
+HAVING count(city) > 1
+
+
+/*4.2.*/
+/*Вопрос 1*/
+SELECT count(DISTINCT fly.status) AS d_count_status --количество статусов для рейсов определено в таблице
+FROM dst_project.flights AS fly
+
+/*Вопрос 2*/
+SELECT count(fly.status) AS count_status --количество самолетов, находящихся в воздухе на момент среза в базе
+FROM dst_project.flights AS fly
+WHERE status = 'Departed'
+
+/*Вопрос 3*/
+SELECT count(seat_no) count_seat --количество мест в самолете модели 773 (Boeing 777-300)
+FROM dst_project.seats AS seat
+WHERE aircraft_code = '773'
+
+/*Вопрос 4*/
+SELECT count(fly.flight_id) --количество состоявшихся рейсов между 1 апреля 2017 года и 1 сентября 2017 года
+FROM dst_project.flights AS fly
+WHERE (fly.scheduled_arrival BETWEEN '2017-04-01 00:00:00' AND '2017-09-01 00:00:00')
+  AND fly.status = 'Arrived'
+
+/*4.3.*/
+/*Вопрос 1*/
+SELECT count(fly.flight_id) --количество рейсов, которые были отменены по данным базы
+FROM dst_project.flights AS fly
+WHERE  fly.status = 'Cancelled'
+
+/*Вопрос 2*/
+SELECT count(ac.model) --количество самолетотов моделей Boeing в базе авиаперевозок
+FROM dst_project.aircrafts AS ac
+WHERE ac.model like 'Boeing%'
+
+SELECT count(ac.model) --количество самолетотов моделей Airbus в базе авиаперевозок
+FROM dst_project.aircrafts AS ac
+WHERE ac.model like 'Sukhoi Superjet%'
+
+SELECT count(ac.model) --количество самолетотов моделей Airbus в базе авиаперевозок
+FROM dst_project.aircrafts AS ac
+WHERE ac.model like 'Airbus%'
+
+/*Вопрос 3*/
+SELECT part_world[1],
+       count(part_world[1]) --количество аэропортов в части (частях) света
+FROM
+  (SELECT regexp_split_to_array(air.timezone, '/')
+   FROM dst_project.airports AS air) AS air(part_world)
+GROUP BY 1
+
+/*Вопрос 4*/
+SELECT fly.flight_id,
+       (fly.actual_arrival - fly.scheduled_arrival) AS delay --рейс c самой большой задержкой прибытия
+FROM dst_project.flights AS fly
+WHERE fly.actual_arrival IS NOT NULL
+ORDER BY 2 DESC
+
+
+/*4.4.*/
+/*Вопрос 1*/
+SELECT min(fly.scheduled_departure) --дата первого запланированного рейса в базе данных
+FROM dst_project.flights AS fly
+
+/*Вопрос 2*/
+SELECT date_part('hour', (fly.scheduled_arrival - fly.scheduled_departure)) * 60 + date_part('minute',(fly.scheduled_arrival - fly.scheduled_departure)) AS flight_time_mm --самый продолжительный рейс в минутах
+FROM dst_project.flights AS fly
+ORDER BY 1 DESC
+
+/*Вопрос 3*/
+SELECT fly.departure_airport, --аэропорт отлета самого протяженного по времени рейса
+       fly.arrival_airport, --аэропорт прилета самого протяженного по времени рейса
+       date_part('hour', (fly.scheduled_arrival - fly.scheduled_departure)) * 60 + date_part('minute', (fly.scheduled_arrival - fly.scheduled_departure)) AS flight_time_mm
+FROM dst_project.flights AS fly
+ORDER BY 3 DESC
+
+/*Вопрос 4*/
+SELECT avg(date_part('hour', (fly.scheduled_arrival - fly.scheduled_departure)) * 60 + date_part('minute', (fly.scheduled_arrival - fly.scheduled_departure))) AS avg_flight_time --среднее время полета рейсов в базе данных
+FROM dst_project.flights AS fly
+
+/*4.5.*/
+/*Вопрос 1*/
+SELECT s.fare_conditions, --класс обслуживания
+ count(s.fare_conditions) AS count_fare -- количество мест по классам обслуживания в самолетах модели SU9
+FROM dst_project.seats AS s
+WHERE aircraft_code = 'SU9'
+GROUP BY 1
+ORDER BY 2 DESC
+
+/*Вопрос 2*/
+SELECT min(b.total_amount) --минимальная стоимость бронирования в базе данных
+FROM dst_project.bookings AS b
+
+
+/*Вопрос 3*/
+SELECT bp.seat_no --номер места пассажира с id '4313 788533'
+FROM dst_project.tickets AS t
+JOIN dst_project.boarding_passes AS bp ON t.ticket_no = bp.ticket_no
+WHERE t.passenger_id = '4313 788533'
+
+
+/*5.1.*/
+/*Вопрос 1*/
+SELECT count(f.flight_id) AS count_fly --количество рейсов, прилетевших в Анапу в 2017 году
+FROM dst_project.flights AS f
+	JOIN dst_project.airports AS air ON f.arrival_airport = air.airport_code
+WHERE (f.actual_arrival BETWEEN '2017-01-01 00:00:00' AND '2017-12-31 23:59:59')
+  AND air.city = 'Anapa'
+
+/*Вопрос 2*/
+SELECT count(f.flight_id) AS count_fly_departure --количество рейсов, вылетевших из Анапы зимой 2017 года
+FROM dst_project.flights AS f
+WHERE departure_airport = 'AAQ'
+     AND ((f.actual_departure BETWEEN '2017-01-01 00:00:00' AND '2017-02-28 23:59:59')
+     OR (f.actual_departure BETWEEN '2017-12-01 00:00:00' AND '2017-12-31 23:59:59'))
+
+/*Вопрос 3*/
+SELECT count(f.flight_id) AS count_fly_cencell --количество рейсов из Анапы, которые были отменены
+FROM dst_project.flights AS f
+WHERE departure_airport in
+    (SELECT air.airport_code
+     FROM dst_project.airports AS air
+     WHERE air.city = 'Anapa')
+     AND f.status = 'Cancelled'
+
+/*Вопрос 4*/
+SELECT count(f.flight_id) AS count_fly_notmos --количество рейсов из Анапы, летающих не в Москву
+FROM dst_project.flights AS f
+	JOIN dst_project.airports AS air ON f.arrival_airport = air.airport_code
+WHERE f.departure_airport = 'AAQ'
+	AND air.city != 'Moscow'
+
+/*Вопрос 5*/
+SELECT ac.model,
+       count(DISTINCT s.seat_no) AS count_seat_model --количество мест в самолетах, летающих из Анапы по моделям самолета
+FROM dst_project.flights AS f
+	JOIN dst_project.seats AS s ON f.aircraft_code = s.aircraft_code
+	JOIN dst_project.aircrafts AS ac ON s.aircraft_code = ac.aircraft_code
+WHERE f.departure_airport = 'AAQ'
+GROUP BY 1
+ORDER BY 2 DESC 
