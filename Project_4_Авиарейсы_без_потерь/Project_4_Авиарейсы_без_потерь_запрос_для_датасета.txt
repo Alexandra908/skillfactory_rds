@@ -1,0 +1,36 @@
+SELECT f.flight_id AS flight_id, --id рейса, совершенного из Анапы в зимний период 2017 года
+ f.departure_airport AS departure_airport, --код аэропорта отлета - AAQ
+ air.city AS departure_city, --город аэропорта отлета - Анапа
+ f.arrival_airport AS arrival_airport, --код аэропорта прилета самолета из аэропорта Анапы
+ ap.city AS arrival_city, --город аэропорта прилета самолета из аэропорта Анапы
+ (date_part('hour', (f.scheduled_arrival - f.scheduled_departure)) * 60 + date_part('minute', (f.scheduled_arrival - f.scheduled_departure))) AS flight_time, --плановое время полета рейса, мин.
+ ac.model AS air_model, --модель самолета
+ count(DISTINCT st.seat_no) AS count_seats, --количество мест в модели самолета
+ count(DISTINCT fc1.seat_no) AS count_business_seats, --количество мест бизнес-класса в модели самолета
+ count(DISTINCT fc2.seat_no) AS count_economy_seats, --количество мест эконом-класса в модели самолета
+ count(DISTINCT bp.ticket_no) AS count_passes, --количество зарегестрированных пассажиров на рейс
+ sum(tf.amount) AS sum_amound --сумма от проданных билетов на рейс
+
+FROM dst_project.flights AS f
+LEFT JOIN dst_project.airports AS air ON f.departure_airport = air.airport_code
+LEFT JOIN dst_project.airports AS ap ON arrival_airport = ap.airport_code
+LEFT JOIN dst_project.aircrafts AS ac ON f.aircraft_code = ac.aircraft_code
+LEFT JOIN dst_project.seats AS st ON f.aircraft_code = st.aircraft_code
+LEFT JOIN dst_project.seats AS fc1 ON f.aircraft_code = fc1.aircraft_code
+LEFT JOIN dst_project.seats AS fc2 ON f.aircraft_code = fc2.aircraft_code
+LEFT JOIN dst_project.boarding_passes AS bp ON f.flight_id = bp.flight_id
+LEFT JOIN dst_project.ticket_flights AS tf ON f.flight_id = tf.flight_id
+WHERE f.departure_airport = 'AAQ'
+  AND (date_trunc('month', f.scheduled_departure) in ('2017-01-01',
+                                                      '2017-02-01',
+                                                      '2017-12-01'))
+  AND f.status not in ('Cancelled')
+  AND fc1.fare_conditions = 'Business'
+  AND fc2.fare_conditions = 'Economy'
+GROUP BY 1,
+         2,
+         3,
+         4,
+         5,
+         6,
+         7
